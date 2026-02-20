@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Alcohol Detector</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; text-align: center; padding: 50px; }
+        .card { background: #1e1e1e; padding: 20px; border-radius: 10px; display: inline-block; width: 300px; }
+        h1 { color: #23C48E; }
+        .value { font-size: 2rem; font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>Dashboard</h1>
+        <h2 id="status" style="color: yellow;">Waiting for data...</h2>
+        <p>Alcohol Raw: <span class="value" id="alco">0</span></p>
+        <p>Humidity: <span class="value" id="hum">0</span>%</p>
+        <p>Temp: <span class="value" id="temp">0</span>°C</p>
+    </div>
+
+    <script>
+        // Fetch data from the server every 2 seconds
+        setInterval(async () => {
+            try {
+                const response = await fetch('/api/data');
+                const data = await response.json();
+                
+                document.getElementById('status').innerText = data.status;
+                document.getElementById('alco').innerText = data.alcohol;
+                document.getElementById('hum').innerText = Math.round(data.humidity);
+                document.getElementById('temp').innerText = Math.round(data.temp);
+
+                // Change status text color based on danger level
+                const statusEl = document.getElementById('status');
+                if(data.status.includes("DANGER")) statusEl.style.color = "#D3435C";
+                else if(data.status.includes("Safe")) statusEl.style.color = "#23C48E";
+                else statusEl.style.color = "#FFFFFF";
+
+            } catch (err) {
+                console.error("Error connecting to server");
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
