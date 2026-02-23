@@ -166,14 +166,14 @@
             renderTo: 'alco-gauge',
             title: "Alcohol",
             units: "RAW",
-            minValue: 0,
-            maxValue: 1000,
-            majorTicks: ["0","200","400","600","800","1000"],
+            minValue: 3000, // <-- Baseline shifted to 3000
+            maxValue: 4000, // <-- Max shifted to 4000
+            majorTicks: ["3000","3200","3400","3600","3800","4000"],
             minorTicks: 4,
             highlights: [
-                { "from": 0, "to": 400, "color": "rgba(16, 185, 129, 0.5)" },    // Safe Green
-                { "from": 400, "to": 600, "color": "rgba(245, 158, 11, 0.5)" },  // Warning Yellow
-                { "from": 600, "to": 1000, "color": "rgba(239, 68, 68, 0.5)" }   // Danger Red
+                { "from": 3000, "to": 3400, "color": "rgba(16, 185, 129, 0.5)" },    // Safe Green
+                { "from": 3400, "to": 3600, "color": "rgba(245, 158, 11, 0.5)" },    // Warning Yellow
+                { "from": 3600, "to": 4000, "color": "rgba(239, 68, 68, 0.5)" }      // Danger Red
             ],
             ...sharedConfig
         }).draw();
