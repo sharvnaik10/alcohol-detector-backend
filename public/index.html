@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Breathalyzer Dashboard</title>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/justgage/1.6.1/justgage.js"></script>
+    <script src="https://cdn.rawgit.com/Mikhus/canvas-gauges/gh-pages/download/2.1.7/radial/gauge.min.js"></script>
 
     <style>
         :root {
@@ -36,7 +35,7 @@
         .dashboard {
             background-color: var(--card-bg);
             width: 100%;
-            max-width: 800px; /* Widened slightly to fit the gauges nicely */
+            max-width: 900px;
             border-radius: 20px;
             padding: 30px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -60,7 +59,7 @@
             background: rgba(15, 23, 42, 0.5);
             border: 2px solid var(--text-muted);
             border-radius: 15px;
-            padding: 30px 20px;
+            padding: 20px;
             text-align: center;
             margin-bottom: 30px;
             transition: all 0.3s ease;
@@ -75,8 +74,9 @@
 
         /* Metrics Grid */
         .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
             gap: 20px;
         }
 
@@ -87,14 +87,13 @@
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
         }
 
-        .gauge-container {
-            width: 100%;
-            height: 160px;
+        canvas {
+            max-width: 100%;
+            height: auto;
         }
 
         /* Pulse Animation for Danger */
@@ -109,10 +108,8 @@
             animation: pulse 1.5s infinite;
         }
 
-        /* Responsive Tweaks */
         @media (max-width: 480px) {
             .status-panel h2 { font-size: 1.5rem; }
-            .gauge-container { height: 130px; }
         }
     </style>
 </head>
@@ -130,65 +127,90 @@
 
         <div class="metrics-grid">
             <div class="metric-card">
-                <div id="alco-gauge" class="gauge-container"></div>
+                <canvas id="alco-gauge"></canvas>
             </div>
             <div class="metric-card">
-                <div id="hum-gauge" class="gauge-container"></div>
+                <canvas id="hum-gauge"></canvas>
             </div>
             <div class="metric-card">
-                <div id="temp-gauge" class="gauge-container"></div>
+                <canvas id="temp-gauge"></canvas>
             </div>
         </div>
     </div>
 
     <script>
-        // --- Initialize Gauges ---
-        // Setting up the speedometers before fetching data
-        
-        const commonGaugeOptions = {
-            pointer: true,
-            pointerOptions: { toplength: -15, bottomlength: 10, bottomwidth: 12, color: '#8e8e93' },
-            gaugeWidthScale: 0.8,
-            valueFontColor: "#f8fafc",
-            titleFontColor: "#94a3b8",
-            labelFontColor: "#94a3b8"
+        // --- Shared Analog Gauge Styling ---
+        const sharedConfig = {
+            width: 250,
+            height: 250,
+            colorPlate: "#1e293b",
+            colorMajorTicks: "#f8fafc",
+            colorMinorTicks: "#94a3b8",
+            colorTitle: "#f8fafc",
+            colorUnits: "#94a3b8",
+            colorNumbers: "#f8fafc",
+            colorNeedle: "rgba(240, 128, 128, 1)",
+            colorNeedleEnd: "rgba(255, 160, 122, .9)",
+            valueBox: true,
+            colorValueText: "#f8fafc",
+            colorValueBoxRect: "#0f172a",
+            colorValueBoxRectEnd: "#0f172a",
+            animationRule: "bounce",
+            animationDuration: 500,
+            strokeTicks: true,
+            borders: false
         };
 
-        const alcoGauge = new JustGage({
-            id: "alco-gauge",
-            value: 0,
-            min: 0,
-            max: 1000,
-            title: "Alcohol (RAW)",
-            label: "RAW",
-            customSectors: [
-                { color: "#10b981", lo: 0, hi: 400 },   // Green for Safe
-                { color: "#ef4444", lo: 401, hi: 1000 } // Red for Danger
+        // --- 1. Alcohol Gauge (Green to Red) ---
+        var alcoGauge = new RadialGauge({
+            renderTo: 'alco-gauge',
+            title: "Alcohol",
+            units: "RAW",
+            minValue: 0,
+            maxValue: 1000,
+            majorTicks: ["0","200","400","600","800","1000"],
+            minorTicks: 4,
+            highlights: [
+                { "from": 0, "to": 400, "color": "rgba(16, 185, 129, 0.5)" },    // Safe Green
+                { "from": 400, "to": 600, "color": "rgba(245, 158, 11, 0.5)" },  // Warning Yellow
+                { "from": 600, "to": 1000, "color": "rgba(239, 68, 68, 0.5)" }   // Danger Red
             ],
-            ...commonGaugeOptions
-        });
+            ...sharedConfig
+        }).draw();
 
-        const humGauge = new JustGage({
-            id: "hum-gauge",
-            value: 0,
-            min: 0,
-            max: 100,
+        // --- 2. Humidity Gauge (Blue Shades) ---
+        var humGauge = new RadialGauge({
+            renderTo: 'hum-gauge',
             title: "Breath Hum",
-            label: "%",
-            levelColors: ["#38bdf8"], // Blue
-            ...commonGaugeOptions
-        });
+            units: "%",
+            minValue: 0,
+            maxValue: 100,
+            majorTicks: ["0","20","40","60","80","100"],
+            minorTicks: 4,
+            highlights: [
+                { "from": 0, "to": 40, "color": "rgba(148, 163, 184, 0.3)" },    // Grey/Dry
+                { "from": 40, "to": 70, "color": "rgba(56, 189, 248, 0.4)" },    // Light Blue
+                { "from": 70, "to": 100, "color": "rgba(37, 99, 235, 0.6)" }     // Deep Blue (Breath detected)
+            ],
+            ...sharedConfig
+        }).draw();
 
-        const tempGauge = new JustGage({
-            id: "temp-gauge",
-            value: 0,
-            min: 0,
-            max: 50,
-            title: "Temperature",
-            label: "°C",
-            levelColors: ["#f59e0b"], // Orange
-            ...commonGaugeOptions
-        });
+        // --- 3. Temperature Gauge (Cool to Hot) ---
+        var tempGauge = new RadialGauge({
+            renderTo: 'temp-gauge',
+            title: "Temp",
+            units: "°C",
+            minValue: 0,
+            maxValue: 50,
+            majorTicks: ["0","10","20","30","40","50"],
+            minorTicks: 2,
+            highlights: [
+                { "from": 0, "to": 20, "color": "rgba(56, 189, 248, 0.4)" },     // Cool Blue
+                { "from": 20, "to": 35, "color": "rgba(16, 185, 129, 0.4)" },    // Room Temp Green
+                { "from": 35, "to": 50, "color": "rgba(239, 68, 68, 0.5)" }      // Hot Red
+            ],
+            ...sharedConfig
+        }).draw();
 
         // --- Fetch Data & Update Logic ---
         let previousStatus = "Connecting...";
@@ -204,10 +226,10 @@
                 // Update text status
                 statusEl.innerText = data.status;
 
-                // Update Gauges with animated sweeps
-                alcoGauge.refresh(data.alcohol);
-                humGauge.refresh(Math.round(data.humidity));
-                tempGauge.refresh(Math.round(data.temp));
+                // Move the physical needles
+                alcoGauge.value = data.alcohol;
+                humGauge.value = Math.round(data.humidity);
+                tempGauge.value = Math.round(data.temp);
 
                 // --- ALERT LOGIC ---
                 if (data.status.includes("DANGER") && previousStatus !== data.status) {
