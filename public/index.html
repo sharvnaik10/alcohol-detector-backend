@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Breathalyzer Dashboard</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/raphael/2.3.0/raphael.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/justgage/1.6.1/justgage.js"></script>
+
     <style>
         :root {
             --bg-color: #0f172a;
@@ -32,7 +36,7 @@
         .dashboard {
             background-color: var(--card-bg);
             width: 100%;
-            max-width: 600px;
+            max-width: 800px; /* Widened slightly to fit the gauges nicely */
             border-radius: 20px;
             padding: 30px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
@@ -72,37 +76,25 @@
         /* Metrics Grid */
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
         }
 
         .metric-card {
             background: rgba(15, 23, 42, 0.5);
-            padding: 20px;
+            padding: 15px;
             border-radius: 15px;
             text-align: center;
             border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
 
-        .metric-card .label {
-            display: block;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-        }
-
-        .metric-card .value {
-            font-size: 2.2rem;
-            font-weight: bold;
-            color: var(--accent);
-        }
-
-        .metric-card .unit {
-            font-size: 1rem;
-            color: var(--text-muted);
-            margin-left: 2px;
+        .gauge-container {
+            width: 100%;
+            height: 160px;
         }
 
         /* Pulse Animation for Danger */
@@ -120,7 +112,7 @@
         /* Responsive Tweaks */
         @media (max-width: 480px) {
             .status-panel h2 { font-size: 1.5rem; }
-            .metric-card .value { font-size: 1.8rem; }
+            .gauge-container { height: 130px; }
         }
     </style>
 </head>
@@ -138,21 +130,67 @@
 
         <div class="metrics-grid">
             <div class="metric-card">
-                <span class="label">Alcohol (RAW)</span>
-                <span class="value" id="alco">0</span>
+                <div id="alco-gauge" class="gauge-container"></div>
             </div>
             <div class="metric-card">
-                <span class="label">Breath Hum</span>
-                <span class="value" id="hum">0</span><span class="unit">%</span>
+                <div id="hum-gauge" class="gauge-container"></div>
             </div>
             <div class="metric-card">
-                <span class="label">Temp</span>
-                <span class="value" id="temp">0</span><span class="unit">°C</span>
+                <div id="temp-gauge" class="gauge-container"></div>
             </div>
         </div>
     </div>
 
     <script>
+        // --- Initialize Gauges ---
+        // Setting up the speedometers before fetching data
+        
+        const commonGaugeOptions = {
+            pointer: true,
+            pointerOptions: { toplength: -15, bottomlength: 10, bottomwidth: 12, color: '#8e8e93' },
+            gaugeWidthScale: 0.8,
+            valueFontColor: "#f8fafc",
+            titleFontColor: "#94a3b8",
+            labelFontColor: "#94a3b8"
+        };
+
+        const alcoGauge = new JustGage({
+            id: "alco-gauge",
+            value: 0,
+            min: 0,
+            max: 1000,
+            title: "Alcohol (RAW)",
+            label: "RAW",
+            customSectors: [
+                { color: "#10b981", lo: 0, hi: 400 },   // Green for Safe
+                { color: "#ef4444", lo: 401, hi: 1000 } // Red for Danger
+            ],
+            ...commonGaugeOptions
+        });
+
+        const humGauge = new JustGage({
+            id: "hum-gauge",
+            value: 0,
+            min: 0,
+            max: 100,
+            title: "Breath Hum",
+            label: "%",
+            levelColors: ["#38bdf8"], // Blue
+            ...commonGaugeOptions
+        });
+
+        const tempGauge = new JustGage({
+            id: "temp-gauge",
+            value: 0,
+            min: 0,
+            max: 50,
+            title: "Temperature",
+            label: "°C",
+            levelColors: ["#f59e0b"], // Orange
+            ...commonGaugeOptions
+        });
+
+        // --- Fetch Data & Update Logic ---
         let previousStatus = "Connecting...";
 
         setInterval(async () => {
@@ -163,21 +201,22 @@
                 const statusEl = document.getElementById('status');
                 const panelEl = document.getElementById('status-panel');
 
-                // Update text values
+                // Update text status
                 statusEl.innerText = data.status;
-                document.getElementById('alco').innerText = data.alcohol;
-                document.getElementById('hum').innerText = Math.round(data.humidity);
-                document.getElementById('temp').innerText = Math.round(data.temp);
+
+                // Update Gauges with animated sweeps
+                alcoGauge.refresh(data.alcohol);
+                humGauge.refresh(Math.round(data.humidity));
+                tempGauge.refresh(Math.round(data.temp));
 
                 // --- ALERT LOGIC ---
-                // If status switches to Danger, trigger a browser pop-up alert
                 if (data.status.includes("DANGER") && previousStatus !== data.status) {
                     alert("🚨 ALARM: Drunk Driver Detected! 🚨\nEngine start sequence disabled.");
                 }
                 previousStatus = data.status;
 
                 // --- UI COLOR LOGIC ---
-                panelEl.classList.remove('danger-pulse'); // reset pulse
+                panelEl.classList.remove('danger-pulse'); 
                 
                 if (data.status.includes("DANGER")) {
                     statusEl.style.color = "var(--danger)";
